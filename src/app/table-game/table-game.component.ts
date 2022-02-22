@@ -74,6 +74,8 @@ OnDestroy {
   gamelog: string = '';
   gameover: boolean = false;
   gamewon: boolean = false;
+  wumpusDead: boolean = false;
+  goldTaked: boolean = false;
 
   constructor() {}
 
@@ -181,7 +183,7 @@ OnDestroy {
 
   private activeWumpus(): void {
     this.idIntervalWumpus = setInterval(() => {
-      if(!this.gameover && !this.gamewon) {
+      if(!this.gameover && !this.gamewon && !this.wumpusDead) {
         this.moveWumpus();
       } else {
         clearInterval(this.idIntervalWumpus);
@@ -277,7 +279,84 @@ OnDestroy {
     }
     this.gamelog += 'Flecha lanzada\n';
     this.properties.arrows --;
+
+    let rowIndex = 0;
+    let colIndex = 0;
+    this.cellMatrix.forEach((row : Array < any >, indexRow : number) => {
+      row.forEach((cell, indexCell : number) => {
+        if (cell.roles.indexOf('Cazador') != -1) {
+          rowIndex = indexRow;
+          colIndex = indexCell;
+        }
+      });
+    });
+
+    if(this.wumpusDead) {
+      return;
+    }
+
+    switch (this.currentDirection) {
+      case 'north':
+        this.shootToNorth(rowIndex, colIndex);
+        break;
+      case 'east':
+        this.shootToEast(rowIndex, colIndex);
+        break;
+      case 'south':
+        this.shootToSouth(rowIndex, colIndex);
+        break;
+      case 'west':
+        this.shootToWest(rowIndex, colIndex);
+        break;
+      default:
+        break;
+    }
+
+    if(this.wumpusDead) {
+      this.gamelog += 'Wumpus is depth by your arrow!!!\n'
+    }
   }
+
+  private shootToNorth(row: number, col: number): void {
+    for (let index = row - 1; index >= 0; index--) {
+      let indexWumpus = this.cellMatrix[index][col].roles.indexOf('Wumpus');
+      if(indexWumpus != -1) {
+        this.wumpusDead = true;
+        break;
+      }
+    }
+  }
+
+  private shootToEast(row: number, col: number): void {
+    for (let index = col + 1; index < this.properties.sizeTable; index++) {
+      let indexWumpus = this.cellMatrix[row][index].roles.indexOf('Wumpus');
+      if(indexWumpus != -1) {
+        this.wumpusDead = true;
+        break;
+      }
+    }
+  }
+
+  private shootToSouth(row: number, col: number): void {
+    for (let index = row + 1; index < this.properties.sizeTable; index++) {
+      let indexWumpus = this.cellMatrix[index][col].roles.indexOf('Wumpus');
+      if(indexWumpus != -1) {
+        this.wumpusDead = true;
+        break;
+      }
+    }
+  }
+
+  private shootToWest(row: number, col: number): void {
+    for (let index = col - 1; index >= 0; index--) {
+      let indexWumpus = this.cellMatrix[row][index].roles.indexOf('Wumpus');
+      if(indexWumpus != -1) {
+        this.wumpusDead = true;
+        break;
+      }
+    }
+  }
+
 
   private moveHunter(): void {
     let rowIndex = 0;
@@ -324,9 +403,15 @@ OnDestroy {
 
     let currencIndex = this.cellMatrix[rowIndex][colIndex].roles.indexOf('Oro');
     if(currencIndex != -1) {
-      this.gamewon = true;
-      this.gamelog += 'WINNER!!!\n';
+      this.goldTaked = true;
+      this.gamelog += 'Obtuviste el Oro!!!\n';
+      this.cellMatrix[rowIndex][colIndex].roles.splice(currencIndex, 1);
     }
+
+    if(this.goldTaked && rowIndex == this.properties.sizeTable - 1 && colIndex == 0) {
+      this.gamewon = true;
+      this.gamelog += 'YOU WIN!!!\n';
+    } 
   }
 
   private isGameOver(): void {
@@ -342,7 +427,7 @@ OnDestroy {
     });
 
     let currencIndex = this.cellMatrix[rowIndex][colIndex].roles.indexOf('Wumpus');
-    if(currencIndex != -1) {
+    if(currencIndex != -1 && !this.wumpusDead) {
       this.gameover = true;
       this.gamelog += 'Wumpus te atrapo!!!\n';
       this.gamelog += 'GAME OVER!!!\n';
